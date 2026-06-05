@@ -1,0 +1,20 @@
+{
+    "logs": [
+        {
+            "outputFile": "com.registrocarregamento.app-mergeDebugResources-2:/values-v25/values-v25.xml",
+            "map": [
+                {
+                    "source": "C:\\Users\\Erickson\\.gradle\\caches\\9.0.0\\transforms\\e5882909fe4b3364d27b732f4963f258\\transformed\\appcompat-1.6.1\\res\\values-v25\\values-v25.xml",
+                    "from": {
+                        "startLines": "2,3,4,6",
+                        "startColumns": "4,4,4,4",
+                        "startOffsets": "55,126,209,308",
+                        "endLines": "2,3,5,7",
+                        "endColumns": "70,82,12,12",
+                        "endOffsets": "121,204,303,414"
+                    }
+                }
+            ]
+        }
+    ]
+}
