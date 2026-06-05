@@ -12,6 +12,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.FlashAuto
+import androidx.compose.material.icons.filled.FlashOff
+import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -45,7 +48,9 @@ fun CameraScreen(
     val lifecycleOwner = LocalLifecycleOwner.current
 
     var imageCapture by remember { mutableStateOf<ImageCapture?>(null) }
+    var camera by remember { mutableStateOf<Camera?>(null) }
     var capturando by remember { mutableStateOf(false) }
+    var flashMode by remember { mutableIntStateOf(ImageCapture.FLASH_MODE_AUTO) }
     val executor = remember { Executors.newSingleThreadExecutor() }
 
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
@@ -60,15 +65,17 @@ fun CameraScreen(
                     }
                     val capture = ImageCapture.Builder()
                         .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
+                        .setFlashMode(ImageCapture.FLASH_MODE_AUTO) // flash automático
                         .build()
                     imageCapture = capture
                     cameraProvider.unbindAll()
-                    cameraProvider.bindToLifecycle(
+                    val cam = cameraProvider.bindToLifecycle(
                         lifecycleOwner,
                         CameraSelector.DEFAULT_BACK_CAMERA,
                         preview,
                         capture
                     )
+                    camera = cam
                 }, ContextCompat.getMainExecutor(ctx))
                 previewView
             },
@@ -95,7 +102,35 @@ fun CameraScreen(
             IconButton(onClick = onFechar) {
                 Icon(Icons.Default.Close, "Fechar", tint = Color.White)
             }
-            Text(titulo, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+            Text(
+                titulo,
+                color = Color.White,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.weight(1f)
+            )
+            // Botão flash
+            IconButton(onClick = {
+                flashMode = when (flashMode) {
+                    ImageCapture.FLASH_MODE_AUTO -> ImageCapture.FLASH_MODE_ON
+                    ImageCapture.FLASH_MODE_ON   -> ImageCapture.FLASH_MODE_OFF
+                    else                          -> ImageCapture.FLASH_MODE_AUTO
+                }
+                imageCapture?.flashMode = flashMode
+            }) {
+                Icon(
+                    imageVector = when (flashMode) {
+                        ImageCapture.FLASH_MODE_ON   -> Icons.Default.FlashOn
+                        ImageCapture.FLASH_MODE_OFF  -> Icons.Default.FlashOff
+                        else                          -> Icons.Default.FlashAuto
+                    },
+                    contentDescription = "Flash",
+                    tint = when (flashMode) {
+                        ImageCapture.FLASH_MODE_ON -> Color.Yellow
+                        else                        -> Color.White
+                    }
+                )
+            }
         }
 
         // Dica
@@ -171,7 +206,6 @@ private fun capturarFoto(
         override fun onImageSaved(output: ImageCapture.OutputFileResults) {
             val path = arquivo.absolutePath
             if (detectarPlaca) {
-                // CORRIGIDO: usa reconhecerPlacaDeArquivo com context
                 reconhecerPlacaDeArquivo(context, arquivo) { placaDetectada ->
                     onResultado(path, placaDetectada)
                 }
@@ -189,7 +223,6 @@ fun reconhecerPlacaDeArquivo(context: Context, arquivo: File, onPlaca: (String?)
         val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
         recognizer.process(image)
             .addOnSuccessListener { visionText ->
-                // Padrão Mercosul: AAA0A00 | Padrão antigo: AAA0000
                 val placaRegex = Regex("[A-Z]{3}[0-9][A-Z0-9][0-9]{2}")
                 val placa = visionText.textBlocks
                     .flatMap { it.lines }

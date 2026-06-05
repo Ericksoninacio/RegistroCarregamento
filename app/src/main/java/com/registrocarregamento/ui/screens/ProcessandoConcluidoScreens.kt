@@ -153,7 +153,7 @@ fun EtapaRow(texto: String, concluido: Boolean) {
 fun ConcluidoScreen(
     id: Long,
     navController: NavController,
-    vm: RegistroViewModel = hiltViewModel()
+    vm: RegistroViewModel = hiltViewModel() // o valor passado pelo AppNavigation vai sobrescrever
 ) {
     val dataHora = remember { "${DateUtil.dataAtual()}  ${DateUtil.horaAtual()}" }
 

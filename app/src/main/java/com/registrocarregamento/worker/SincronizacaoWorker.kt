@@ -141,7 +141,7 @@ class SincronizacaoWorker @AssistedInject constructor(
                 KEY_EMAIL_SENHA to senha,
                 KEY_EMAIL_DESTINATARIO to destinatario
             )
-            val request = PeriodicWorkRequestBuilder<SincronizacaoWorker>(15, TimeUnit.MINUTES)
+            val request = PeriodicWorkRequestBuilder<SincronizacaoWorker>(1, TimeUnit.MINUTES)
                 .setConstraints(Constraints.Builder()
                     .setRequiredNetworkType(NetworkType.CONNECTED)
                     .build())
