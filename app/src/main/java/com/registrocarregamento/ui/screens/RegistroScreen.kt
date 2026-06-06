@@ -223,6 +223,8 @@ fun RegistroScreen(
     }
 }
 
+
+
 @Composable
 fun SectionLabel(texto: String) {
     Text(

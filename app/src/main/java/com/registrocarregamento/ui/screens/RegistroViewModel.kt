@@ -72,4 +72,10 @@ class RegistroViewModel @Inject constructor(
                 r.fotoNfe1Path != null &&
                 r.fotoCtePath != null
     }
+
+    fun apagarHistorico() {
+        viewModelScope.launch {
+            repository.apagarTodos()
+        }
+    }
 }

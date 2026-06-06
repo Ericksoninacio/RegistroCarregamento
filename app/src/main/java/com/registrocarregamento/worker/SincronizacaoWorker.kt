@@ -5,11 +5,13 @@ import android.util.Log
 import androidx.hilt.work.HiltWorker
 import androidx.work.*
 import com.registrocarregamento.data.repository.CarregamentoRepository
+import com.registrocarregamento.domain.model.Carregamento
 import com.registrocarregamento.util.NetworkUtil
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import java.io.File
 import java.util.Properties
+import java.util.UUID
 import java.util.concurrent.TimeUnit
 import javax.mail.*
 import javax.mail.internet.*
@@ -26,50 +28,80 @@ class SincronizacaoWorker @AssistedInject constructor(
             return Result.retry()
         }
 
-        val destinatario = inputData.getString(KEY_EMAIL_DESTINATARIO) ?: return Result.failure()
-        val remetente = inputData.getString(KEY_EMAIL_REMETENTE) ?: return Result.failure()
-        val senha = inputData.getString(KEY_EMAIL_SENHA) ?: return Result.failure()
+        val destinatario = inputData.getString(KEY_EMAIL_DESTINATARIO) ?: return Result.failure(
+            workDataOf("erro" to "Destinatário não configurado.")
+        )
+        val remetente = inputData.getString(KEY_EMAIL_REMETENTE) ?: return Result.failure(
+            workDataOf("erro" to "Remetente não configurado.")
+        )
+        val senha = inputData.getString(KEY_EMAIL_SENHA) ?: return Result.failure(
+            workDataOf("erro" to "Senha não configurada.")
+        )
 
         val pendentes = repository.listarPendentes()
-        if (pendentes.isEmpty()) return Result.success()
+        if (pendentes.isEmpty()) {
+            return Result.success(workDataOf("resultado" to "Nenhum registro pendente."))
+        }
 
+        var enviados = 0
         var erros = 0
+        val mensagensErro = mutableListOf<String>()
+
         for (carregamento in pendentes) {
+            // Valida que os arquivos obrigatórios existem antes de tentar enviar
+            val arquivosInvalidos = listarArquivosInvalidos(carregamento)
+            if (arquivosInvalidos.isNotEmpty()) {
+                val msg = "Registro ${carregamento.id} (${carregamento.placa}): arquivos ausentes — ${arquivosInvalidos.joinToString()}"
+                Log.w("SincronizacaoWorker", msg)
+                repository.marcarErroSincronizacao(carregamento.id)
+                mensagensErro.add(msg)
+                erros++
+                continue
+            }
+
             try {
-                enviarEmail(
-                    remetente = remetente,
-                    senha = senha,
-                    destinatario = destinatario,
-                    carregamento = com.registrocarregamento.domain.model.Carregamento(
-                        id = carregamento.id,
-                        placa = carregamento.placa,
-                        cliente = carregamento.cliente,
-                        cidadeCarregamento = carregamento.cidadeCarregamento,
-                        cidadeConfereCte = carregamento.cidadeConfereCte,
-                        dataRegistro = carregamento.dataRegistro,
-                        horaRegistro = carregamento.horaRegistro,
-                        fotoPlaca = carregamento.fotoPlaca,
-                        fotoNfe1 = carregamento.fotoNfe1,
-                        fotoNfe2 = carregamento.fotoNfe2,
-                        fotoCte = carregamento.fotoCte
-                    )
-                )
+                enviarEmail(remetente, senha, destinatario, carregamento)
                 repository.marcarComoSincronizado(carregamento.id)
+                enviados++
+            } catch (e: AuthenticationFailedException) {
+                // Senha errada — não adianta tentar os outros, falha imediata
+                Log.e("SincronizacaoWorker", "Autenticação falhou", e)
+                return Result.failure(workDataOf("erro" to "Autenticação falhou. Verifique a Senha de App nas configurações."))
             } catch (e: Exception) {
                 Log.e("SincronizacaoWorker", "Erro ao enviar carregamento ${carregamento.id}", e)
                 repository.marcarErroSincronizacao(carregamento.id)
+                mensagensErro.add("Registro ${carregamento.id}: ${e.message}")
                 erros++
             }
         }
 
-        return if (erros == 0) Result.success() else Result.retry()
+        return when {
+            erros == 0 -> Result.success(workDataOf("resultado" to "✓ $enviados registro(s) enviado(s)."))
+            enviados == 0 -> {
+                val erroMsg = mensagensErro.firstOrNull() ?: "Todos os envios falharam."
+                Result.failure(workDataOf("erro" to erroMsg))
+            }
+            else -> Result.success(workDataOf("resultado" to "$enviados enviado(s), $erros com erro. Verifique o histórico."))
+        }
+    }
+
+    /**
+     * Retorna lista de campos com problema para facilitar diagnóstico.
+     */
+    private fun listarArquivosInvalidos(c: Carregamento): List<String> {
+        val invalidos = mutableListOf<String>()
+        if (c.fotoPlaca.isBlank() || !File(c.fotoPlaca).exists()) invalidos.add("foto da placa")
+        if (c.fotoNfe1.isBlank() || !File(c.fotoNfe1).exists()) invalidos.add("foto NF-e 1")
+        if (c.fotoCte.isBlank() || !File(c.fotoCte).exists()) invalidos.add("foto CT-e")
+        // fotoNfe2 é opcional
+        return invalidos
     }
 
     private fun enviarEmail(
         remetente: String,
         senha: String,
         destinatario: String,
-        carregamento: com.registrocarregamento.domain.model.Carregamento
+        carregamento: Carregamento
     ) {
         val props = Properties().apply {
             put("mail.smtp.auth", "true")
@@ -77,11 +109,12 @@ class SincronizacaoWorker @AssistedInject constructor(
             put("mail.smtp.host", "smtp.gmail.com")
             put("mail.smtp.port", "587")
             put("mail.smtp.ssl.trust", "smtp.gmail.com")
+            put("mail.smtp.connectiontimeout", "15000")
+            put("mail.smtp.timeout", "15000")
         }
 
         val session = Session.getInstance(props, object : Authenticator() {
-            override fun getPasswordAuthentication() =
-                PasswordAuthentication(remetente, senha)
+            override fun getPasswordAuthentication() = PasswordAuthentication(remetente, senha)
         })
 
         val message = MimeMessage(session).apply {
@@ -90,8 +123,8 @@ class SincronizacaoWorker @AssistedInject constructor(
             subject = "[Carregamento] ${carregamento.placa} — ${carregamento.dataRegistro}"
         }
 
+        val cidadeBate = if (carregamento.cidadeConfereCte) "✅ Sim" else "❌ Não"
         val corpo = MimeBodyPart().apply {
-            val cidadeBate = if (carregamento.cidadeConfereCte) "✅ Sim" else "❌ Não"
             setText("""
                 REGISTRO DE CARREGAMENTO
                 ========================
@@ -121,7 +154,7 @@ class SincronizacaoWorker @AssistedInject constructor(
             }
             anexar(carregamento.fotoPlaca, "placa.jpg")
             anexar(carregamento.fotoNfe1, "nfe1.jpg")
-            carregamento.fotoNfe2?.let { anexar(it, "nfe2.jpg") }
+            carregamento.fotoNfe2?.let { if (it.isNotBlank()) anexar(it, "nfe2.jpg") }
             anexar(carregamento.fotoCte, "cte.jpg")
         }
 
@@ -131,17 +164,17 @@ class SincronizacaoWorker @AssistedInject constructor(
 
     companion object {
         const val KEY_EMAIL_DESTINATARIO = "email_destinatario"
-        const val KEY_EMAIL_REMETENTE = "email_remetente"
-        const val KEY_EMAIL_SENHA = "email_senha"
-        const val WORK_NAME = "sincronizacao_carregamentos"
+        const val KEY_EMAIL_REMETENTE    = "email_remetente"
+        const val KEY_EMAIL_SENHA         = "email_senha"
+        const val WORK_NAME               = "sincronizacao_carregamentos"
 
         fun agendar(context: Context, remetente: String, senha: String, destinatario: String) {
             val data = workDataOf(
-                KEY_EMAIL_REMETENTE to remetente,
-                KEY_EMAIL_SENHA to senha,
-                KEY_EMAIL_DESTINATARIO to destinatario
+                KEY_EMAIL_REMETENTE    to remetente,
+                KEY_EMAIL_SENHA         to senha,
+                KEY_EMAIL_DESTINATARIO  to destinatario
             )
-            val request = PeriodicWorkRequestBuilder<SincronizacaoWorker>(1, TimeUnit.MINUTES)
+            val request = PeriodicWorkRequestBuilder<SincronizacaoWorker>(5, TimeUnit.MINUTES)
                 .setConstraints(Constraints.Builder()
                     .setRequiredNetworkType(NetworkType.CONNECTED)
                     .build())
@@ -156,11 +189,11 @@ class SincronizacaoWorker @AssistedInject constructor(
             )
         }
 
-        fun dispararImediato(context: Context, remetente: String, senha: String, destinatario: String) {
+        fun dispararImediato(context: Context, remetente: String, senha: String, destinatario: String): UUID {
             val data = workDataOf(
-                KEY_EMAIL_REMETENTE to remetente,
-                KEY_EMAIL_SENHA to senha,
-                KEY_EMAIL_DESTINATARIO to destinatario
+                KEY_EMAIL_REMETENTE    to remetente,
+                KEY_EMAIL_SENHA         to senha,
+                KEY_EMAIL_DESTINATARIO  to destinatario
             )
             val request = OneTimeWorkRequestBuilder<SincronizacaoWorker>()
                 .setConstraints(Constraints.Builder()
@@ -170,6 +203,7 @@ class SincronizacaoWorker @AssistedInject constructor(
                 .build()
 
             WorkManager.getInstance(context).enqueue(request)
+            return request.id
         }
     }
 }

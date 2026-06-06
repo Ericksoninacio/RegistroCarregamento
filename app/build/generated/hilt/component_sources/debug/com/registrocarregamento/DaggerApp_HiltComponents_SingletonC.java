@@ -23,6 +23,8 @@ import com.registrocarregamento.ui.screens.RegistroViewModel;
 import com.registrocarregamento.ui.screens.RegistroViewModel_HiltModules;
 import com.registrocarregamento.worker.SincronizacaoWorker;
 import com.registrocarregamento.worker.SincronizacaoWorker_AssistedFactory;
+import com.registrocarregamento.worker.TesteEmailWorker;
+import com.registrocarregamento.worker.TesteEmailWorker_AssistedFactory;
 import dagger.hilt.android.ActivityRetainedLifecycle;
 import dagger.hilt.android.ViewModelLifecycle;
 import dagger.hilt.android.internal.builders.ActivityComponentBuilder;
@@ -43,6 +45,7 @@ import dagger.internal.DoubleCheck;
 import dagger.internal.IdentifierNameString;
 import dagger.internal.KeepFieldType;
 import dagger.internal.LazyClassKeyMap;
+import dagger.internal.MapBuilder;
 import dagger.internal.Preconditions;
 import dagger.internal.Provider;
 import dagger.internal.SingleCheck;
@@ -563,6 +566,8 @@ public final class DaggerApp_HiltComponents_SingletonC {
 
     private Provider<SincronizacaoWorker_AssistedFactory> sincronizacaoWorker_AssistedFactoryProvider;
 
+    private Provider<TesteEmailWorker_AssistedFactory> testeEmailWorker_AssistedFactoryProvider;
+
     private SingletonCImpl(ApplicationContextModule applicationContextModuleParam) {
       this.applicationContextModule = applicationContextModuleParam;
       initialize(applicationContextModuleParam);
@@ -579,7 +584,7 @@ public final class DaggerApp_HiltComponents_SingletonC {
 
     private Map<String, javax.inject.Provider<WorkerAssistedFactory<? extends ListenableWorker>>> mapOfStringAndProviderOfWorkerAssistedFactoryOf(
         ) {
-      return Collections.<String, javax.inject.Provider<WorkerAssistedFactory<? extends ListenableWorker>>>singletonMap("com.registrocarregamento.worker.SincronizacaoWorker", ((Provider) sincronizacaoWorker_AssistedFactoryProvider));
+      return MapBuilder.<String, javax.inject.Provider<WorkerAssistedFactory<? extends ListenableWorker>>>newMapBuilder(2).put("com.registrocarregamento.worker.SincronizacaoWorker", ((Provider) sincronizacaoWorker_AssistedFactoryProvider)).put("com.registrocarregamento.worker.TesteEmailWorker", ((Provider) testeEmailWorker_AssistedFactoryProvider)).build();
     }
 
     private HiltWorkerFactory hiltWorkerFactory() {
@@ -591,6 +596,7 @@ public final class DaggerApp_HiltComponents_SingletonC {
       this.provideDatabaseProvider = DoubleCheck.provider(new SwitchingProvider<AppDatabase>(singletonCImpl, 2));
       this.carregamentoRepositoryProvider = DoubleCheck.provider(new SwitchingProvider<CarregamentoRepository>(singletonCImpl, 1));
       this.sincronizacaoWorker_AssistedFactoryProvider = SingleCheck.provider(new SwitchingProvider<SincronizacaoWorker_AssistedFactory>(singletonCImpl, 0));
+      this.testeEmailWorker_AssistedFactoryProvider = SingleCheck.provider(new SwitchingProvider<TesteEmailWorker_AssistedFactory>(singletonCImpl, 3));
     }
 
     @Override
@@ -645,6 +651,14 @@ public final class DaggerApp_HiltComponents_SingletonC {
 
           case 2: // com.registrocarregamento.data.local.AppDatabase 
           return (T) AppModule_ProvideDatabaseFactory.provideDatabase(ApplicationContextModule_ProvideContextFactory.provideContext(singletonCImpl.applicationContextModule));
+
+          case 3: // com.registrocarregamento.worker.TesteEmailWorker_AssistedFactory 
+          return (T) new TesteEmailWorker_AssistedFactory() {
+            @Override
+            public TesteEmailWorker create(Context context2, WorkerParameters workerParams2) {
+              return new TesteEmailWorker(context2, workerParams2);
+            }
+          };
 
           default: throw new AssertionError(id);
         }

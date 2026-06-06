@@ -28,6 +28,9 @@ interface CarregamentoDao {
 
     @Query("SELECT COUNT(*) FROM carregamentos WHERE sincronizado = 0")
     fun contarPendentes(): Flow<Int>
+
+    @Query("DELETE FROM carregamentos")
+    suspend fun apagarTodos()
 }
 
 @Dao

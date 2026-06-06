@@ -4,6 +4,7 @@ import androidx.hilt.work.HiltWrapper_WorkerFactoryModule;
 import com.registrocarregamento.di.AppModule;
 import com.registrocarregamento.ui.screens.RegistroViewModel_HiltModules;
 import com.registrocarregamento.worker.SincronizacaoWorker_HiltModule;
+import com.registrocarregamento.worker.TesteEmailWorker_HiltModule;
 import dagger.Binds;
 import dagger.Component;
 import dagger.Module;
@@ -134,7 +135,8 @@ public final class App_HiltComponents {
           ApplicationContextModule.class,
           HiltWrapper_FragmentGetContextFix_FragmentGetContextFixModule.class,
           HiltWrapper_WorkerFactoryModule.class,
-          SincronizacaoWorker_HiltModule.class
+          SincronizacaoWorker_HiltModule.class,
+          TesteEmailWorker_HiltModule.class
       }
   )
   @Singleton

@@ -42,6 +42,8 @@ public final class CarregamentoDao_Impl implements CarregamentoDao {
 
   private final SharedSQLiteStatement __preparedStmtOfMarcarComoSincronizado;
 
+  private final SharedSQLiteStatement __preparedStmtOfApagarTodos;
+
   public CarregamentoDao_Impl(@NonNull final RoomDatabase __db) {
     this.__db = __db;
     this.__insertionAdapterOfCarregamentoEntity = new EntityInsertionAdapter<CarregamentoEntity>(__db) {
@@ -115,6 +117,14 @@ public final class CarregamentoDao_Impl implements CarregamentoDao {
         return _query;
       }
     };
+    this.__preparedStmtOfApagarTodos = new SharedSQLiteStatement(__db) {
+      @Override
+      @NonNull
+      public String createQuery() {
+        final String _query = "DELETE FROM carregamentos";
+        return _query;
+      }
+    };
   }
 
   @Override
@@ -176,6 +186,29 @@ public final class CarregamentoDao_Impl implements CarregamentoDao {
           }
         } finally {
           __preparedStmtOfMarcarComoSincronizado.release(_stmt);
+        }
+      }
+    }, $completion);
+  }
+
+  @Override
+  public Object apagarTodos(final Continuation<? super Unit> $completion) {
+    return CoroutinesRoom.execute(__db, true, new Callable<Unit>() {
+      @Override
+      @NonNull
+      public Unit call() throws Exception {
+        final SupportSQLiteStatement _stmt = __preparedStmtOfApagarTodos.acquire();
+        try {
+          __db.beginTransaction();
+          try {
+            _stmt.executeUpdateDelete();
+            __db.setTransactionSuccessful();
+            return Unit.INSTANCE;
+          } finally {
+            __db.endTransaction();
+          }
+        } finally {
+          __preparedStmtOfApagarTodos.release(_stmt);
         }
       }
     }, $completion);

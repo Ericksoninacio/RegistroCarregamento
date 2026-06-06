@@ -1,5 +1,6 @@
 package com.registrocarregamento.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -7,10 +8,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.CloudOff
+import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -22,7 +22,6 @@ import androidx.navigation.NavController
 import com.registrocarregamento.domain.model.Carregamento
 import com.registrocarregamento.ui.components.AppTopBar
 import com.registrocarregamento.ui.components.Verde
-import androidx.compose.foundation.BorderStroke
 
 @Composable
 fun HistoricoScreen(
@@ -30,12 +29,51 @@ fun HistoricoScreen(
     vm: RegistroViewModel = hiltViewModel()
 ) {
     val historico by vm.historico.collectAsState()
+    var confirmarApagar by remember { mutableStateOf(false) }
+
+    if (confirmarApagar) {
+        AlertDialog(
+            onDismissRequest = { confirmarApagar = false },
+            title = { Text("Apagar histórico") },
+            text = {
+                Text(
+                    "Todos os ${historico.size} registro(s) serão removidos permanentemente. " +
+                            "Esta ação não pode ser desfeita.",
+                    lineHeight = 20.sp
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    vm.apagarHistorico()
+                    confirmarApagar = false
+                }) {
+                    Text("Apagar tudo", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmarApagar = false }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
 
     Scaffold(
         topBar = {
             AppTopBar(
                 titulo = "Histórico",
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStack() },
+                actions = {
+                    if (historico.isNotEmpty()) {
+                        IconButton(onClick = { confirmarApagar = true }) {
+                            Icon(
+                                Icons.Default.DeleteSweep,
+                                contentDescription = "Apagar tudo",
+                                tint = Color.White
+                            )
+                        }
+                    }
+                }
             )
         }
     ) { padding ->
@@ -44,8 +82,10 @@ fun HistoricoScreen(
                 modifier = Modifier.fillMaxSize().padding(padding),
                 contentAlignment = Alignment.Center
             ) {
-                Text("Nenhum registro encontrado.",
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
+                Text(
+                    "Nenhum registro encontrado.",
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                )
             }
         } else {
             LazyColumn(
@@ -75,9 +115,17 @@ fun HistoricoItem(c: Carregamento) {
                 verticalAlignment = Alignment.Top
             ) {
                 Column {
-                    Text(c.placa, fontSize = 16.sp, fontWeight = FontWeight.Medium, letterSpacing = 1.sp)
-                    Text(c.cliente, fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                    Text(
+                        c.placa.ifBlank { "—" },
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium,
+                        letterSpacing = 1.sp
+                    )
+                    Text(
+                        c.cliente.ifBlank { "—" },
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
                 }
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -104,12 +152,16 @@ fun HistoricoItem(c: Carregamento) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text("${c.dataRegistro} ${c.horaRegistro}",
+                Text(
+                    "${c.dataRegistro}  ${c.horaRegistro}",
                     fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
-                Text(c.cidadeCarregamento,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                )
+                Text(
+                    c.cidadeCarregamento.ifBlank { "—" },
                     fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                )
             }
         }
     }

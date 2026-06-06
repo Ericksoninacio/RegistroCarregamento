@@ -53,4 +53,8 @@ class CarregamentoRepository @Inject constructor(
         dataRegistro, horaRegistro, fotoPlaca, fotoNfe1, fotoNfe2,
         fotoCte, sincronizado, criadoEm
     )
+
+    suspend fun apagarTodos() {
+        carregamentoDao.apagarTodos()
+    }
 }
