@@ -48,7 +48,6 @@ class SincronizacaoWorker @AssistedInject constructor(
         val mensagensErro = mutableListOf<String>()
 
         for (carregamento in pendentes) {
-            // Valida que os arquivos obrigatórios existem antes de tentar enviar
             val arquivosInvalidos = listarArquivosInvalidos(carregamento)
             if (arquivosInvalidos.isNotEmpty()) {
                 val msg = "Registro ${carregamento.id} (${carregamento.placa}): arquivos ausentes — ${arquivosInvalidos.joinToString()}"
@@ -64,7 +63,6 @@ class SincronizacaoWorker @AssistedInject constructor(
                 repository.marcarComoSincronizado(carregamento.id)
                 enviados++
             } catch (e: AuthenticationFailedException) {
-                // Senha errada — não adianta tentar os outros, falha imediata
                 Log.e("SincronizacaoWorker", "Autenticação falhou", e)
                 return Result.failure(workDataOf("erro" to "Autenticação falhou. Verifique a Senha de App nas configurações."))
             } catch (e: Exception) {
@@ -85,15 +83,11 @@ class SincronizacaoWorker @AssistedInject constructor(
         }
     }
 
-    /**
-     * Retorna lista de campos com problema para facilitar diagnóstico.
-     */
     private fun listarArquivosInvalidos(c: Carregamento): List<String> {
         val invalidos = mutableListOf<String>()
         if (c.fotoPlaca.isBlank() || !File(c.fotoPlaca).exists()) invalidos.add("foto da placa")
         if (c.fotoNfe1.isBlank() || !File(c.fotoNfe1).exists()) invalidos.add("foto NF-e 1")
         if (c.fotoCte.isBlank() || !File(c.fotoCte).exists()) invalidos.add("foto CT-e")
-        // fotoNfe2 é opcional
         return invalidos
     }
 
@@ -165,16 +159,32 @@ class SincronizacaoWorker @AssistedInject constructor(
     companion object {
         const val KEY_EMAIL_DESTINATARIO = "email_destinatario"
         const val KEY_EMAIL_REMETENTE    = "email_remetente"
-        const val KEY_EMAIL_SENHA         = "email_senha"
-        const val WORK_NAME               = "sincronizacao_carregamentos"
+        const val KEY_EMAIL_SENHA        = "email_senha"
+        const val WORK_NAME              = "sincronizacao_carregamentos"
 
+        // Chamado no App.onCreate — KEEP preserva o timer existente, evitando disparos duplicados
         fun agendar(context: Context, remetente: String, senha: String, destinatario: String) {
+            enqueuePeriodicWork(context, remetente, senha, destinatario, ExistingPeriodicWorkPolicy.KEEP)
+        }
+
+        // Chamado ao salvar configurações — UPDATE aplica novas credenciais imediatamente
+        fun reagendarComNovasConfiguracoes(context: Context, remetente: String, senha: String, destinatario: String) {
+            enqueuePeriodicWork(context, remetente, senha, destinatario, ExistingPeriodicWorkPolicy.UPDATE)
+        }
+
+        private fun enqueuePeriodicWork(
+            context: Context,
+            remetente: String,
+            senha: String,
+            destinatario: String,
+            policy: ExistingPeriodicWorkPolicy
+        ) {
             val data = workDataOf(
                 KEY_EMAIL_REMETENTE    to remetente,
-                KEY_EMAIL_SENHA         to senha,
-                KEY_EMAIL_DESTINATARIO  to destinatario
+                KEY_EMAIL_SENHA        to senha,
+                KEY_EMAIL_DESTINATARIO to destinatario
             )
-            val request = PeriodicWorkRequestBuilder<SincronizacaoWorker>(5, TimeUnit.MINUTES)
+            val request = PeriodicWorkRequestBuilder<SincronizacaoWorker>(15, TimeUnit.MINUTES)
                 .setConstraints(Constraints.Builder()
                     .setRequiredNetworkType(NetworkType.CONNECTED)
                     .build())
@@ -182,18 +192,14 @@ class SincronizacaoWorker @AssistedInject constructor(
                 .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 1, TimeUnit.MINUTES)
                 .build()
 
-            WorkManager.getInstance(context).enqueueUniquePeriodicWork(
-                WORK_NAME,
-                ExistingPeriodicWorkPolicy.KEEP,
-                request
-            )
+            WorkManager.getInstance(context).enqueueUniquePeriodicWork(WORK_NAME, policy, request)
         }
 
         fun dispararImediato(context: Context, remetente: String, senha: String, destinatario: String): UUID {
             val data = workDataOf(
                 KEY_EMAIL_REMETENTE    to remetente,
-                KEY_EMAIL_SENHA         to senha,
-                KEY_EMAIL_DESTINATARIO  to destinatario
+                KEY_EMAIL_SENHA        to senha,
+                KEY_EMAIL_DESTINATARIO to destinatario
             )
             val request = OneTimeWorkRequestBuilder<SincronizacaoWorker>()
                 .setConstraints(Constraints.Builder()

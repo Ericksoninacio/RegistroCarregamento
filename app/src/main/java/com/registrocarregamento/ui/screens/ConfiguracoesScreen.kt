@@ -137,7 +137,7 @@ fun ConfiguracoesScreen(navController: NavController) {
                             prefs[KEY_EMAIL_SENHA]        = senha
                             prefs[KEY_EMAIL_DESTINATARIO] = destinatario
                         }
-                        SincronizacaoWorker.agendar(context, remetente, senha, destinatario)
+                        SincronizacaoWorker.reagendarComNovasConfiguracoes(context, remetente, senha, destinatario)
                         mensagemSalvar = "Configurações salvas!"
                         salvando = false
                     }
