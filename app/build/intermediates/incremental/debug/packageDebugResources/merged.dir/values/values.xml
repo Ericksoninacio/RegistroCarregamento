@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="app_name">Registro de Carregamento</string>
-    <style name="Theme.RegistroCarregamento" parent="android:Theme.Material.Light.NoActionBar"/>
-</resources>
