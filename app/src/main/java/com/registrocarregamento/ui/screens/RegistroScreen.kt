@@ -81,7 +81,7 @@ fun RegistroScreen(
         },
         bottomBar = {
             BotoesPrincipais(
-                textoSecundario = "🗑 Limpar tudo",
+                textoSecundario = "Limpar tudo",
                 textoPrimario = "Próximo →",
                 onSecundario = { vm.limparTudo() },
                 onPrimario = { navController.navigate(Screen.Documentos.route) },
@@ -89,12 +89,15 @@ fun RegistroScreen(
                         rascunho.cliente.isNotBlank() &&
                         rascunho.cidadeCarregamento.isNotBlank()
             )
-        }
+        },
+        // imePadding no Scaffold garante que o conteúdo sobe junto com o teclado
+        contentWindowInsets = WindowInsets.ime
     ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .imePadding() // empurra o conteúdo acima do teclado
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -127,11 +130,16 @@ fun RegistroScreen(
                 }
                 Column(modifier = Modifier.weight(1f)) {
                     Text("Fotografar placa", fontSize = 13.sp, fontWeight = FontWeight.Medium)
-                    Text("Aponte a câmera para a placa do veículo",
-                        fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                    Text(
+                        "Aponte a câmera para a placa do veículo",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
                 }
-                Icon(Icons.Default.ChevronRight, null,
-                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f))
+                Icon(
+                    Icons.Default.ChevronRight, null,
+                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                )
             }
 
             if (rascunho.fotoPlacaPath != null || rascunho.placa.isNotBlank()) {
@@ -194,6 +202,9 @@ fun RegistroScreen(
                     }
                 }
             )
+
+            // Espaço extra no final para o campo não ficar colado no bottomBar ao rolar
+            Spacer(Modifier.height(8.dp))
         }
     }
 
@@ -222,8 +233,6 @@ fun RegistroScreen(
         )
     }
 }
-
-
 
 @Composable
 fun SectionLabel(texto: String) {
