@@ -1,7 +1,8 @@
-<<<<<<< HEAD
 # Registro de Carregamento
 
 App Android para registro offline de carregamentos de carga, com sincronização automática via e-mail.
+
+![Apresentação](https://raw.githubusercontent.com/Ericksoninacio/RegistroCarregamento/main/apresenta%C3%A7%C3%A3o.png)
 
 ## Stack
 
@@ -124,6 +125,3 @@ app/src/main/java/com/registrocarregamento/
 ├── util/Utils.kt                   # NetworkUtil, FileUtil, DateUtil
 └── worker/SincronizacaoWorker.kt   # WorkManager + JavaMail
 ```
-=======
-# RegistroCarregamento
->>>>>>> 8c0c31b7fc199c0a8cf8a05043aef7a835de6a9e
